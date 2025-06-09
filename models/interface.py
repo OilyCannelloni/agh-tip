@@ -8,6 +8,27 @@ class InterfaceType(enum.Enum):
 
 
 @dataclasses.dataclass
+class VrfConfig:
+    name: str
+    rd: str
+
+    def to_yang(self):
+        return {
+            "Cisco-IOS-XE-native:definition": [
+                {
+                    "name": self.name,
+                    "rd": self.rd,
+                    "address-family": {
+                        "ipv4": {
+                            "unicast": {}
+                        }
+                    }
+                }
+            ]
+        }
+
+
+@dataclasses.dataclass
 class InterfaceConfig:
     name: str
     type: InterfaceType
