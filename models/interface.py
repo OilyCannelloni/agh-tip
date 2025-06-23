@@ -17,10 +17,11 @@ class VrfConfig:
     import_rt: Optional[str] = None  # Import Route Target
     export_rt: Optional[str] = None  # Export Route Target
 
-    def to_yang(self):
+    @staticmethod
+    def default_yang(name):
         config = {
             "Cisco-IOS-XE-native:definition": {
-                "name" : self.name
+                "name" : name
             }
         }
 
@@ -36,11 +37,13 @@ class VrfConfig:
         return config
 
 
+
+
 @dataclasses.dataclass
 class InterfaceConfig:
     """Interface Configuration"""
     name: str
-    type: InterfaceType
+    type: InterfaceType = InterfaceType.ETHERNET
     ip_addr: Optional[str] = None
     ip_mask: Optional[str] = None
     enabled: bool = True
@@ -51,25 +54,27 @@ class InterfaceConfig:
         interface_config = {
             "ietf-interfaces:interface": {
                 "name": self.name,
-                "description": self.description
+                "description": self.description,
+                "type": self.type.value,
+                "enabled": self.enabled
             }
         }
 
         # Add IP configuration if provided
-        # if self.ip_addr and self.ip_mask:
-        #     interface_config["ietf-interfaces:interface"]["ietf-ip:ipv4"] = {
-        #         "address": [
-        #             {
-        #                 "ip": self.ip_addr,
-        #                 "netmask": self.ip_mask
-        #             }
-        #         ]
-        #     }
-        #
-        # # Add VRF assignment if specified
-        # if self.vrf:
-        #     interface_config["ietf-interfaces:interface"]["Cisco-IOS-XE-native:vrf"] = {
-        #         "forwarding": self.vrf
-        #     }
+        if self.ip_addr and self.ip_mask:
+            interface_config["ietf-interfaces:interface"]["ietf-ip:ipv4"] = {
+                "address": [
+                    {
+                        "ip": self.ip_addr,
+                        "netmask": self.ip_mask
+                    }
+                ]
+            }
+
+        # Add VRF assignment if specified
+        if self.vrf:
+            interface_config["ietf-interfaces:interface"]["Cisco-IOS-XE-native:vrf"] = {
+                "forwarding": self.vrf
+            }
 
         return interface_config

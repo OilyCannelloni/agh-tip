@@ -136,6 +136,15 @@ class RestConfHandler:
             "data": response.json() if response.text else None
         }
 
+    def create_vrf_from_yang(self, vrf_config) -> Dict[str, Any]:
+        """Create VRF configuration"""
+        url = self._build_url(RequestType.VRF)
+        response = self._make_request("POST", url, vrf_config)
+        return {
+            "status_code": response.status_code,
+            "data": response.json() if response.text else None
+        }
+
     def assign_vrf_to_interface(self, interface: str, vrf_name: str) -> Dict[str, Any]:
         """Assign VRF to interface for route leaking"""
         # This modifies the interface to include VRF assignment
@@ -162,6 +171,23 @@ class RestConfHandler:
         return {
             "status_code": response.status_code,
             "data": response.json() if response.status_code == 200 else None
+        }
+
+    def create_bgp(self, as_number: int) -> Dict[str, Any]:
+        """Create BGP configuration"""
+        bgp_config = {
+            "Cisco-IOS-XE-bgp:bgp": {
+                "id": as_number,
+                "bgp": {
+                    "log-neighbor-changes": False
+                }
+            }
+        }
+        url = self._build_url(RequestType.BGP)
+        response = self._make_request("PATCH", url, bgp_config)
+        return {
+            "status_code": response.status_code,
+            "data": response.json() if response.text else None
         }
 
     def configure_bgp_address_family(self, as_number: int, vrf_name: str,

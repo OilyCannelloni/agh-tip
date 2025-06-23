@@ -25,23 +25,17 @@ def educational_route_leaking_demo():
     print("Step 2: Creating VRFs...")
 
     # VRF for customer A
-    vrf_a = VrfConfig(
-        name="CUSTOMER_A",
-        rd="65000:100",
-        export_rt="65000:100",
-        import_rt="65000:200"
+    vrf_a = VrfConfig.default_yang(
+        name="CUSTOMER_A"
     )
 
     # VRF for customer B
-    vrf_b = VrfConfig(
-        name="CUSTOMER_B",
-        rd="65000:200",
-        export_rt="65000:200",
-        import_rt="65000:100"
+    vrf_b = VrfConfig.default_yang(
+        name="CUSTOMER_B"
     )
 
-    result_a = handler.create_vrf(vrf_a)
-    result_b = handler.create_vrf(vrf_b)
+    result_a = handler.create_vrf_from_yang(vrf_a)
+    result_b = handler.create_vrf_from_yang(vrf_b)
 
     print(f"VRF CUSTOMER_A: {result_a['status_code']}")
     print(f"VRF CUSTOMER_B: {result_b['status_code']}\n")
@@ -52,21 +46,13 @@ def educational_route_leaking_demo():
     # Interface for Customer A
     int_a = InterfaceConfig(
         name="GigabitEthernet0/0/1",
-        type=InterfaceType.ETHERNET,
-        ip_addr="192.168.1.1",
-        ip_mask="255.255.255.0",
-        description="Customer A Interface",
-        vrf="CUSTOMER_A"
+        description="Customer A Interface"
     )
 
     # Interface for Customer B (THIS WAS MISSING!)
     int_b = InterfaceConfig(
         name="GigabitEthernet0/0/2",
-        type=InterfaceType.ETHERNET,
-        ip_addr="192.168.2.1",
-        ip_mask="255.255.255.0",
-        description="Customer B Interface",
-        vrf="CUSTOMER_B"
+        description="Customer B Interface"
     )
 
     result_int_a = handler.update_interface(int_a)
@@ -77,6 +63,12 @@ def educational_route_leaking_demo():
 
     # Step 4: Configure BGP for route leaking
     print("\nStep 4: Configuring BGP address families...")
+
+    bgp_result = handler.create_bgp(
+        as_number=65000
+    )
+
+    print(f"BGP Address Family: {bgp_result['status_code']}")
 
     # BGP for Customer A VRF
     bgp_result_a = handler.configure_bgp_address_family(
@@ -104,11 +96,14 @@ def educational_route_leaking_demo():
 
     # Check VRF status
     vrfs = handler.get_vrfs()
-    print(f"VRF Status Check: {vrfs['status_code']}")
+    print(vrfs)
 
     # Check interface status
     interfaces = handler.get_interfaces()
-    print(f"Interface Status Check: {interfaces['status_code']}")
+    print(interfaces)
+
+    bgp = handler.get_bgp_config()
+    print(bgp)
 
     # print("\n=== Route Leaking Configuration Complete! ===")
     # print("\nWhat was configured:")
@@ -159,23 +154,23 @@ def advanced_route_leaking_scenarios():
         import_rt="65000:999"  # Only imports from services
     )
 
-    print("• SHARED_SERVICES VRF: Exports services, imports from customers")
-    print("• Customer VRFs: Export their routes, import only services")
-    print("• Result: Customers can access shared services but not each other\n")
-
-    # Scenario 2: Selective Route Leaking
-    print("Scenario 2: Selective Route Leaking with Route Maps")
-    print("Use case: Only specific routes leaked between VRFs")
-    print("• Use route-maps to filter which routes are imported/exported")
-    print("• Example: Only leak default route or specific prefixes")
-    print("• Provides fine-grained control over route sharing\n")
-
-    # Show how to add route-map configuration
-    print("Route-map example (would need additional RESTCONF calls):")
-    print("route-map LEAK_DEFAULT permit 10")
-    print(" match ip address prefix-list DEFAULT_ONLY")
-    print("!")
-    print("ip prefix-list DEFAULT_ONLY seq 5 permit 0.0.0.0/0")
+    # print("• SHARED_SERVICES VRF: Exports services, imports from customers")
+    # print("• Customer VRFs: Export their routes, import only services")
+    # print("• Result: Customers can access shared services but not each other\n")
+    #
+    # # Scenario 2: Selective Route Leaking
+    # print("Scenario 2: Selective Route Leaking with Route Maps")
+    # print("Use case: Only specific routes leaked between VRFs")
+    # print("• Use route-maps to filter which routes are imported/exported")
+    # print("• Example: Only leak default route or specific prefixes")
+    # print("• Provides fine-grained control over route sharing\n")
+    #
+    # # Show how to add route-map configuration
+    # print("Route-map example (would need additional RESTCONF calls):")
+    # print("route-map LEAK_DEFAULT permit 10")
+    # print(" match ip address prefix-list DEFAULT_ONLY")
+    # print("!")
+    # print("ip prefix-list DEFAULT_ONLY seq 5 permit 0.0.0.0/0")
 
 
 # Complete educational demonstration
@@ -188,7 +183,7 @@ def complete_educational_demo():
         educational_route_leaking_demo()
 
         # Advanced scenarios
-        advanced_route_leaking_scenarios()
+        # advanced_route_leaking_scenarios()
 
 
     except Exception as e:
