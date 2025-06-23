@@ -14,7 +14,7 @@ HEADERS = {
 }
 
 # Default authentication (change for your lab)
-DEFAULT_AUTH = ("cisco", "cisco123!")
+DEFAULT_AUTH = ("agh", "xd")
 
 
 class RequestType(enum.Enum):
@@ -32,7 +32,7 @@ class RestConfHandler:
     for educational purposes, specifically focusing on route leaking in MP-BGP.
     """
 
-    def __init__(self, ip_addr: str, username: str = "cisco", password: str = "cisco123!"):
+    def __init__(self, ip_addr: str, username: str = "agh", password: str = "xd"):
         """
         Initialize RESTCONF handler
 
@@ -43,23 +43,28 @@ class RestConfHandler:
         """
         self.ip_addr = ip_addr
         self.auth = (username, password)
-        self.base_url = f"https://{ip_addr}/restconf/data"
+        self.base_url = f"https://{ip_addr}:443/restconf/data"
 
     def _build_url(self, rq_type: RequestType, **kwargs) -> str:
         """Build appropriate URL based on request type"""
         match rq_type:
             case RequestType.INTERFACE:
                 interface = kwargs.get('interface', '')
+                interface = interface.replace("/", "%2F")
                 return f"{self.base_url}/ietf-interfaces:interfaces/interface={interface}"
             case RequestType.VRF:
-                return f"{self.base_url}/Cisco-IOS-XE-native:native/vrf/definition"
+                return f"{self.base_url}/Cisco-IOS-XE-native:native/vrf"
             case RequestType.BGP:
-                return f"{self.base_url}/Cisco-IOS-XE-native:native/router/Cisco-IOS-XE-bgp:bgp"
+                return f"{self.base_url}/Cisco-IOS-XE-native:native/router/bgp"
             case RequestType.ROUTE_MAP:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/route-map"
 
     def _make_request(self, method: str, url: str, data: Optional[Dict] = None) -> requests.Response:
         """Make HTTP request with proper error handling"""
+        print("url:", url)
+        print(data)
+        print(method)
+
         try:
             response = requests.request(
                 method=method,
@@ -106,7 +111,7 @@ class RestConfHandler:
     def update_interface(self, interface_config) -> Dict[str, Any]:
         """Update interface configuration"""
         url = self._build_url(RequestType.INTERFACE, interface=interface_config.name)
-        response = self._make_request("PUT", url, interface_config.to_yang())
+        response = self._make_request("PATCH", url, interface_config.to_yang())
         return {
             "status_code": response.status_code,
             "data": response.json() if response.text else None
@@ -125,7 +130,7 @@ class RestConfHandler:
     def create_vrf(self, vrf_config) -> Dict[str, Any]:
         """Create VRF configuration"""
         url = self._build_url(RequestType.VRF)
-        response = self._make_request("PUT", url, vrf_config.to_yang())
+        response = self._make_request("POST", url, vrf_config.to_yang())
         return {
             "status_code": response.status_code,
             "data": response.json() if response.text else None
@@ -165,29 +170,17 @@ class RestConfHandler:
         bgp_config = {
             "Cisco-IOS-XE-bgp:bgp": {
                 "id": as_number,
-                "address-family": {
-                    "with-vrf": {
-                        "ipv4": {
-                            "af-name": "unicast",
-                            "vrf": [
-                                {
-                                    "name": vrf_name,
-                                    "ipv4-unicast": {
-                                        "rd": rd,
-                                        "route-target": {
-                                            "export": export_rt,
-                                            "import": import_rt
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
+                "bgp": {
+                    "router-id": "10.0.0.1",
+                    "neighbor": [{
+                        "id": "10.0.0.2",
+                        "remote-as": 65002
+                    }]
                 }
             }
         }
         url = self._build_url(RequestType.BGP)
-        response = self._make_request("PUT", url, bgp_config)
+        response = self._make_request("PATCH", url, bgp_config)
         return {
             "status_code": response.status_code,
             "data": response.json() if response.text else None

@@ -1,12 +1,5 @@
-"""
-SZ.5: Wykorzystanie interfejsu programistycznego do konfiguracji mechanizmu route leaking na urządzeniach w laboratorium sieciowym.
-Zadaniem zespołu będzie przygotowanie aplikacji wykorzystującej programowy dostęp do urządzeń sieciowych zainstalowanych
-w laboratorium w celu ułatwienia konfiguracji i sprawdzenia stanu "przeciekania tras" w MP-BGP. Preferowany interfejs
-programistyczny: RESTconf. Ważne: aplikacja ma mieć aspekt edukacyjny, tzn. ma być przygotowana w formie
-umożliwiającej samodzielną naukę wykorzystania takiego interfejsu.
-"""
 from api import RestConfHandler
-from models.interface import InterfaceConfig, InterfaceType
+from models.interface import InterfaceConfig, InterfaceType, VrfConfig
 
 
 def educational_route_leaking_demo():
@@ -24,7 +17,7 @@ def educational_route_leaking_demo():
     handler = RestConfHandler("10.0.0.1")  # Replace with your device IP
 
     if not handler.test_connection():
-        print("❌ Cannot connect to device. Check IP, credentials, and RESTCONF enablement.")
+        print("Cannot connect to device. Check IP, credentials, and RESTCONF enablement.")
         return
     print("✅ Connected successfully!\n")
 
@@ -50,8 +43,8 @@ def educational_route_leaking_demo():
     result_a = handler.create_vrf(vrf_a)
     result_b = handler.create_vrf(vrf_b)
 
-    print(f"VRF CUSTOMER_A: {'✅' if result_a['status_code'] in [200, 201, 204] else '❌'}")
-    print(f"VRF CUSTOMER_B: {'✅' if result_b['status_code'] in [200, 201, 204] else '❌'}\n")
+    print(f"VRF CUSTOMER_A: {result_a['status_code']}")
+    print(f"VRF CUSTOMER_B: {result_b['status_code']}\n")
 
     # Step 3: Configure interfaces and assign to VRFs
     print("Step 3: Configuring interfaces...")
@@ -66,13 +59,27 @@ def educational_route_leaking_demo():
         vrf="CUSTOMER_A"
     )
 
+    # Interface for Customer B (THIS WAS MISSING!)
+    int_b = InterfaceConfig(
+        name="GigabitEthernet0/0/2",
+        type=InterfaceType.ETHERNET,
+        ip_addr="192.168.2.1",
+        ip_mask="255.255.255.0",
+        description="Customer B Interface",
+        vrf="CUSTOMER_B"
+    )
+
     result_int_a = handler.update_interface(int_a)
-    print(f"Interface GigE0/0/1: {'✅' if result_int_a['status_code'] in [200, 201, 204] else '❌'}")
+    result_int_b = handler.update_interface(int_b)
+
+    print(f"Interface GigE0/0/1 (Customer A): {result_int_a['status_code']}")
+    print(f"Interface GigE0/0/2 (Customer B): {result_int_b['status_code']}")
 
     # Step 4: Configure BGP for route leaking
     print("\nStep 4: Configuring BGP address families...")
 
-    bgp_result = handler.configure_bgp_address_family(
+    # BGP for Customer A VRF
+    bgp_result_a = handler.configure_bgp_address_family(
         as_number=65000,
         vrf_name="CUSTOMER_A",
         rd="65000:100",
@@ -80,16 +87,118 @@ def educational_route_leaking_demo():
         export_rt="65000:100"
     )
 
-    print(f"BGP Address Family: {'✅' if bgp_result['status_code'] in [200, 201, 204] else '❌'}")
+    # BGP for Customer B VRF
+    bgp_result_b = handler.configure_bgp_address_family(
+        as_number=65000,
+        vrf_name="CUSTOMER_B",
+        rd="65000:200",
+        import_rt="65000:100",
+        export_rt="65000:200"
+    )
 
-    print("\n=== Route Leaking Configuration Complete! ===")
-    print("\nKey Concepts Demonstrated:")
-    print("1. VRF creation with Route Distinguishers (RD)")
-    print("2. Route Target import/export for selective route sharing")
-    print("3. Interface assignment to VRFs")
-    print("4. BGP address family configuration for MP-BGP")
-    print("\nThis enables controlled route sharing between VRFs - the foundation of route leaking!")
+    print(f"BGP Address Family (Customer A): {bgp_result_a['status_code']}")
+    print(f"BGP Address Family (Customer B): {bgp_result_b['status_code']}")
+
+    # Step 5: Verification and status check
+    print("\nStep 5: Verifying configuration...")
+
+    # Check VRF status
+    vrfs = handler.get_vrfs()
+    print(f"VRF Status Check: {vrfs['status_code']}")
+
+    # Check interface status
+    interfaces = handler.get_interfaces()
+    print(f"Interface Status Check: {interfaces['status_code']}")
+
+    # print("\n=== Route Leaking Configuration Complete! ===")
+    # print("\nWhat was configured:")
+    # print("• VRF CUSTOMER_A (RD: 65000:100) - exports RT 65000:100, imports RT 65000:200")
+    # print("• VRF CUSTOMER_B (RD: 65000:200) - exports RT 65000:200, imports RT 65000:100")
+    # print("• Interface GigE0/0/1 (192.168.1.1/24) assigned to CUSTOMER_A")
+    # print("• Interface GigE0/0/2 (192.168.2.1/24) assigned to CUSTOMER_B")
+    # print("• MP-BGP address families for both VRFs")
+    #
+    # print("\nRoute Leaking Result:")
+    # print("🔄 Routes from CUSTOMER_A will be imported into CUSTOMER_B")
+    # print("🔄 Routes from CUSTOMER_B will be imported into CUSTOMER_A")
+    # print("📡 This creates controlled connectivity between the customer networks")
+    #
+    # print("\nKey Educational Concepts:")
+    # print("1. VRF isolation - separate routing tables")
+    # print("2. Route Distinguisher (RD) - makes routes globally unique")
+    # print("3. Route Targets (RT) - control selective route import/export")
+    # print("4. MP-BGP - carries VPN routes between devices")
+    # print("5. Bidirectional route leaking - both VRFs share routes")
+
+
+def advanced_route_leaking_scenarios():
+    """
+    Advanced scenarios for educational purposes
+    """
+    print("\n=== Advanced Route Leaking Scenarios ===\n")
+
+    handler = RestConfHandler("10.0.0.1")
+
+    # Scenario 1: Hub-and-Spoke (Central services VRF)
+    print("Scenario 1: Hub-and-Spoke Route Leaking")
+    print("Use case: Shared services (DNS, DHCP) accessible from multiple customer VRFs")
+
+    # Central services VRF
+    services_vrf = VrfConfig(
+        name="SHARED_SERVICES",
+        rd="65000:999",
+        export_rt="65000:999",
+        import_rt="65000:100,65000:200"  # Imports from both customers
+    )
+
+    # Customer VRFs import from services
+    customer_a_hub = VrfConfig(
+        name="CUSTOMER_A_HUB",
+        rd="65000:101",
+        export_rt="65000:100",
+        import_rt="65000:999"  # Only imports from services
+    )
+
+    print("• SHARED_SERVICES VRF: Exports services, imports from customers")
+    print("• Customer VRFs: Export their routes, import only services")
+    print("• Result: Customers can access shared services but not each other\n")
+
+    # Scenario 2: Selective Route Leaking
+    print("Scenario 2: Selective Route Leaking with Route Maps")
+    print("Use case: Only specific routes leaked between VRFs")
+    print("• Use route-maps to filter which routes are imported/exported")
+    print("• Example: Only leak default route or specific prefixes")
+    print("• Provides fine-grained control over route sharing\n")
+
+    # Show how to add route-map configuration
+    print("Route-map example (would need additional RESTCONF calls):")
+    print("route-map LEAK_DEFAULT permit 10")
+    print(" match ip address prefix-list DEFAULT_ONLY")
+    print("!")
+    print("ip prefix-list DEFAULT_ONLY seq 5 permit 0.0.0.0/0")
+
+
+# Complete educational demonstration
+def complete_educational_demo():
+    """
+    Run the complete educational demonstration
+    """
+    try:
+        # Main demo
+        educational_route_leaking_demo()
+
+        # Advanced scenarios
+        advanced_route_leaking_scenarios()
+
+
+    except Exception as e:
+        print(f"❌ Demo failed: {e}")
+        print("Common issues:")
+        print("- Device not reachable")
+        print("- RESTCONF not enabled")
+        print("- Incorrect credentials")
+        print("- YANG model not supported")
 
 
 if __name__ == "__main__":
-    educational_route_leaking_demo()
+    complete_educational_demo()
