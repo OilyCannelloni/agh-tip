@@ -20,7 +20,9 @@ DEFAULT_AUTH = ("agh", "xd")
 class RequestType(enum.Enum):
     INTERFACE = "interface"
     VRF = "vrf"
+    VRF_PATCH = "vrf patch"
     BGP = "bgp"
+    BGP_PATCH = "bgp patch"
     ROUTE_MAP = "route_map"
 
 
@@ -54,6 +56,8 @@ class RestConfHandler:
                 return f"{self.base_url}/ietf-interfaces:interfaces/interface={interface}"
             case RequestType.VRF:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/vrf"
+            case RequestType.VRF_PATCH:
+                return f"{self.base_url}/Cisco-IOS-XE-native:native/vrf/definition={kwargs['vrf']}"
             case RequestType.BGP:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/router/bgp"
             case RequestType.ROUTE_MAP:
@@ -127,10 +131,19 @@ class RestConfHandler:
             "data": response.json() if response.status_code == 200 else None
         }
 
-    def create_vrf(self, vrf_config) -> Dict[str, Any]:
+    def get_vrf(self, vrf_name: str) -> Dict[str, Any]:
+        """Get specific VRF configuration"""
+        url = self._build_url(RequestType.VRF_PATCH, vrf=vrf_name)
+        response = self._make_request("GET", url)
+        return {
+            "status_code": response.status_code,
+            "data": response.json() if response.status_code == 200 else None
+        }
+
+    def patch_vrf(self, vrf_config, name) -> Dict[str, Any]:
         """Create VRF configuration"""
-        url = self._build_url(RequestType.VRF)
-        response = self._make_request("POST", url, vrf_config.to_yang())
+        url = self._build_url(RequestType.VRF_PATCH, vrf=name)
+        response = self._make_request("PATCH", url, vrf_config.to_yang())
         return {
             "status_code": response.status_code,
             "data": response.json() if response.text else None
@@ -173,13 +186,29 @@ class RestConfHandler:
             "data": response.json() if response.status_code == 200 else None
         }
 
-    def create_bgp(self, as_number: int) -> Dict[str, Any]:
+    def create_bgp(self, as_number: int, vrf_name: str, rd: str, import_rt: str,
+                   export_rt: str) -> Dict[str, Any]:
         """Create BGP configuration"""
         bgp_config = {
             "Cisco-IOS-XE-bgp:bgp": {
                 "id": as_number,
                 "bgp": {
-                    "log-neighbor-changes": False
+                    "log-neighbor-changes": False,
+                    "address-family": {
+                        # "with-vrf": {
+                            # "vrf": vrf_name,
+                            # "address-family": "ipv4-unicast",
+                            # "rd": rd,
+                            # "route-target": {
+                            #     "import": {
+                            #         "asn-ip": [rt.strip() for rt in import_rt.split(",")]
+                            #     },
+                            #     "export": {
+                            #         "asn-ip": [rt.strip() for rt in export_rt.split(",")]
+                            #     }
+                            # }
+                        # }
+                    }
                 }
             }
         }
@@ -196,15 +225,28 @@ class RestConfHandler:
         bgp_config = {
             "Cisco-IOS-XE-bgp:bgp": {
                 "id": as_number,
-                "bgp": {
-                    "router-id": "10.0.0.1",
-                    "neighbor": [{
-                        "id": "10.0.0.2",
-                        "remote-as": 65002
-                    }]
-                }
+                # "address-family": {
+                #     "with-vrf": {
+                #         "af-vrf": [
+                #             {
+                #                 "vrf": vrf_name,
+                #                 "address-family": "ipv4-unicast",
+                #                 "rd": rd,
+                #                 "route-target": {
+                #                     "import": {
+                #                         "asn-ip": [rt.strip() for rt in import_rt.split(",")]
+                #                     },
+                #                     "export": {
+                #                         "asn-ip": [rt.strip() for rt in export_rt.split(",")]
+                #                     }
+                #                 }
+                #             }
+                #         ]
+                #     }
+                # }
             }
         }
+
         url = self._build_url(RequestType.BGP)
         response = self._make_request("PATCH", url, bgp_config)
         return {

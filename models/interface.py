@@ -24,19 +24,30 @@ class VrfConfig:
                 "name" : name
             }
         }
-
-        # Add route targets if specified
-        # if self.import_rt or self.export_rt:
-        #     route_target = {}
-        #     if self.import_rt:
-        #         route_target["import"] = self.import_rt
-        #     if self.export_rt:
-        #         route_target["export"] = self.export_rt
-        #     config["Cisco-IOS-XE-native:definition"][0]["address-family"]["ipv4"]["route-target"] = route_target
-
         return config
 
+    def to_yang(self):
+        config = {
+            "Cisco-IOS-XE-native:definition": {
+                "name": self.name,
+                "rd": self.rd
+            }
+        }
+        #
+        if self.import_rt or self.export_rt:
+            route_target = {}
+            if self.export_rt:
+                route_target["export"] = {
+                    "asn-ip": self.export_rt
+                }
+            if self.import_rt:
+                route_target["import"] = {
+                    "asn-ip": self.import_rt
+                }
 
+            config["Cisco-IOS-XE-native:definition"]["route-target"] = route_target
+
+        return config
 
 
 @dataclasses.dataclass

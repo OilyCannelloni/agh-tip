@@ -10,10 +10,8 @@ def educational_route_leaking_demo():
     route leaking between VRFs using programmatic interfaces.
     """
 
-    print("=== RESTCONF Route Leaking Educational Demo ===\n")
-
     # Step 1: Connect to device
-    print("Step 1: Connecting to network device...")
+    print("*****Step 1: Connecting to network device...")
     handler = RestConfHandler("10.0.0.1")  # Replace with your device IP
 
     if not handler.test_connection():
@@ -22,7 +20,7 @@ def educational_route_leaking_demo():
     print("✅ Connected successfully!\n")
 
     # Step 2: Create VRFs for route leaking
-    print("Step 2: Creating VRFs...")
+    print("*****Step 2: Creating VRFs...")
 
     # VRF for customer A
     vrf_a = VrfConfig.default_yang(
@@ -41,7 +39,7 @@ def educational_route_leaking_demo():
     print(f"VRF CUSTOMER_B: {result_b['status_code']}\n")
 
     # Step 3: Configure interfaces and assign to VRFs
-    print("Step 3: Configuring interfaces...")
+    print("*****Step 3: Configuring interfaces...")
 
     # Interface for Customer A
     int_a = InterfaceConfig(
@@ -61,38 +59,66 @@ def educational_route_leaking_demo():
     print(f"Interface GigE0/0/1 (Customer A): {result_int_a['status_code']}")
     print(f"Interface GigE0/0/2 (Customer B): {result_int_b['status_code']}")
 
-    # Step 4: Configure BGP for route leaking
-    print("\nStep 4: Configuring BGP address families...")
 
-    bgp_result = handler.create_bgp(
-        as_number=65000
+    print("\n**Step 4: Configuring VRFS")
+
+    vrf_a = VrfConfig(
+        name="CUSTOMER_A",
+        rd="65000:100",
+        export_rt="65000:100",
+        import_rt="65000:200"
     )
 
-    print(f"BGP Address Family: {bgp_result['status_code']}")
+    vrf_a_result = handler.patch_vrf(vrf_a, vrf_a.name)
 
-    # BGP for Customer A VRF
-    bgp_result_a = handler.configure_bgp_address_family(
+    print(f"VRF CUSTOMER_A: {vrf_a_result['status_code']}")
+
+    vrf_b = VrfConfig(
+        name="CUSTOMER_B",
+        rd="65000:200",
+        export_rt="65000:200",
+        import_rt="65000:100"
+    )
+
+    vrf_b_result = handler.patch_vrf(vrf_b, vrf_b.name)
+    print(f"VRF CUSTOMER_B: {vrf_b_result['status_code']}")
+
+    print("\n*****Step 5: Configuring BGP address families...")
+
+    bgp_result_a = handler.create_bgp(
         as_number=65000,
         vrf_name="CUSTOMER_A",
         rd="65000:100",
         import_rt="65000:200",
         export_rt="65000:100"
     )
+    print(f"BGP Address Family: {bgp_result_a['status_code']}")
 
-    # BGP for Customer B VRF
-    bgp_result_b = handler.configure_bgp_address_family(
-        as_number=65000,
-        vrf_name="CUSTOMER_B",
-        rd="65000:200",
-        import_rt="65000:100",
-        export_rt="65000:200"
-    )
+    # print("\nStep 6: Configuring BGP address families...")
+    #
+    # # BGP for Customer A VRF
+    # bgp_result_a = handler.configure_bgp_address_family(
+    #     as_number=65000,
+    #     vrf_name="CUSTOMER_A",
+    #     rd="65000:100",
+    #     import_rt="65000:200",
+    #     export_rt="65000:100"
+    # )
+    #
+    # # BGP for Customer B VRF
+    # bgp_result_b = handler.configure_bgp_address_family(
+    #     as_number=65000,
+    #     vrf_name="CUSTOMER_B",
+    #     rd="65000:200",
+    #     import_rt="65000:100",
+    #     export_rt="65000:200"
+    # )
 
-    print(f"BGP Address Family (Customer A): {bgp_result_a['status_code']}")
-    print(f"BGP Address Family (Customer B): {bgp_result_b['status_code']}")
+    # print(f"BGP Address Family (Customer A): {bgp_result_a['status_code']}")
+    # print(f"BGP Address Family (Customer B): {bgp_result_b['status_code']}")
 
     # Step 5: Verification and status check
-    print("\nStep 5: Verifying configuration...")
+    print("\nStep 99: Verifying configuration...")
 
     # Check VRF status
     vrfs = handler.get_vrfs()
@@ -104,26 +130,6 @@ def educational_route_leaking_demo():
 
     bgp = handler.get_bgp_config()
     print(bgp)
-
-    # print("\n=== Route Leaking Configuration Complete! ===")
-    # print("\nWhat was configured:")
-    # print("• VRF CUSTOMER_A (RD: 65000:100) - exports RT 65000:100, imports RT 65000:200")
-    # print("• VRF CUSTOMER_B (RD: 65000:200) - exports RT 65000:200, imports RT 65000:100")
-    # print("• Interface GigE0/0/1 (192.168.1.1/24) assigned to CUSTOMER_A")
-    # print("• Interface GigE0/0/2 (192.168.2.1/24) assigned to CUSTOMER_B")
-    # print("• MP-BGP address families for both VRFs")
-    #
-    # print("\nRoute Leaking Result:")
-    # print("🔄 Routes from CUSTOMER_A will be imported into CUSTOMER_B")
-    # print("🔄 Routes from CUSTOMER_B will be imported into CUSTOMER_A")
-    # print("📡 This creates controlled connectivity between the customer networks")
-    #
-    # print("\nKey Educational Concepts:")
-    # print("1. VRF isolation - separate routing tables")
-    # print("2. Route Distinguisher (RD) - makes routes globally unique")
-    # print("3. Route Targets (RT) - control selective route import/export")
-    # print("4. MP-BGP - carries VPN routes between devices")
-    # print("5. Bidirectional route leaking - both VRFs share routes")
 
 
 def advanced_route_leaking_scenarios():
@@ -193,6 +199,7 @@ def complete_educational_demo():
         print("- RESTCONF not enabled")
         print("- Incorrect credentials")
         print("- YANG model not supported")
+        raise e
 
 
 if __name__ == "__main__":
