@@ -3,6 +3,9 @@
 import cmd
 import argparse
 import shlex
+import json
+from api import RestConfHandler
+from models.interface import InterfaceConfig, InterfaceType, VrfConfig
 
 intro = """Route leaking CLI"""
 
@@ -31,15 +34,32 @@ class RouteLeakingCli(cmd.Cmd):
             prog="initial_config",
             description="Wykonuje wstępną konfigurację przełącznika (hostname, routing, vtp, console)."
         )
+        # Parametry połączeniowe
+        parser.add_argument('--ip', required=True, help="Adres IP urządzenia.")
+        parser.add_argument('--username', default="agh", help="Nazwa użytkownika.")
+        parser.add_argument('--password', default="xd", help="Hasło.")
+        # Parametry komendy
         parser.add_argument('--hostname', required=False, help="Nazwa hosta do ustawienia (np. R3, R4, R5).")
 
         try:
             args = parser.parse_args(shlex.split(arg))
-            print("--- PARAMS: initial_config ---")
+            print(f"--- Running: initial_config na {args.ip} ---")
+
+            handler = RestConfHandler(args.ip, args.username, args.password)
+            if not handler.test_connection():
+                print(
+                    f"BŁĄD: Nie można połączyć się z urządzeniem {args.ip}. Sprawdź IP, dane logowania i czy RESTCONF jest włączony.")
+                return
+
+            print(f"   Połączono z urządzeniem {args.ip}.")
             print(f"   Argumenty: {args}")
-            print("   (W tym miejscu nastąpiłaby właściwa implementacja konfiguracji)\n")
+            print("   (W tym miejscu nastąpiłaby właściwa implementacja konfiguracji hostname, etc.)\n")
+            print("--- Operacja zakończona ---\n")
+
         except SystemExit:
             pass
+        except Exception as e:
+            print(f"Wystąpił nieoczekiwany błąd: {e}")
 
     def do_create_vrf(self, arg):
         """
@@ -49,17 +69,38 @@ class RouteLeakingCli(cmd.Cmd):
             prog="create_vrf",
             description="Tworzy nową instancję VRF z podanym Route Distinguisher."
         )
+        # Parametry połączeniowe
+        parser.add_argument('--ip', required=True, help="Adres IP urządzenia.")
+        parser.add_argument('--username', default="agh", help="Nazwa użytkownika.")
+        parser.add_argument('--password', default="xd", help="Hasło.")
+        # Parametry komendy
         parser.add_argument('--name', required=True, help="Nazwa dla VRF (np. AGH, Common).")
         parser.add_argument('--rd', required=True, help="Route Distinguisher w formacie ASN:NN (np. 65500:1).")
 
         try:
             args = parser.parse_args(shlex.split(arg))
-            print(f"--- PARAMS: create_vrf {args.name} ---")
-            print(f"   Nazwa VRF: {args.name}")
-            print(f"   Route Distinguisher: {args.rd}")
-            print("   (W tym miejscu nastąpiłaby właściwa implementacja konfiguracji)\n")
+            print(f"--- Running: create_vrf '{args.name}' na {args.ip} ---")
+
+            handler = RestConfHandler(args.ip, args.username, args.password)
+            if not handler.test_connection():
+                print(f"BŁĄD: Nie można połączyć się z urządzeniem {args.ip}.")
+                return
+
+            vrf_to_create = VrfConfig(name=args.name, rd=args.rd)
+
+            result = handler.patch_vrf(vrf_to_create, vrf_to_create.name)
+
+            print(f"   Wynik operacji (status: {result['status_code']}):")
+            if result.get('data'):
+                print(json.dumps(result['data'], indent=2))
+            else:
+                print("   Brak danych zwrotnych lub operacja nie powiodła się.")
+            print("--- Operacja zakończona ---\n")
+
         except SystemExit:
             pass
+        except Exception as e:
+            print(f"Wystąpił nieoczekiwany błąd: {e}")
 
     def do_assign_interface(self, arg):
         """
@@ -69,31 +110,76 @@ class RouteLeakingCli(cmd.Cmd):
             prog="assign_interface",
             description="Przypisuje i konfiguruje interfejs w ramach określonego VRF."
         )
+        # Parametry połączeniowe
+        parser.add_argument('--ip', required=True, help="Adres IP urządzenia.")
+        parser.add_argument('--username', default="agh", help="Nazwa użytkownika.")
+        parser.add_argument('--password', default="xd", help="Hasło.")
+
         subparsers = parser.add_subparsers(dest='interface_type', required=True, help='Typ interfejsu')
 
         # interfejs fizyczny
         parser_phys = subparsers.add_parser('physical', help='Konfiguracja interfejsu fizycznego')
-        parser_phys.add_argument('--name', required=True, help='Nazwa interfejsu (np. gi1/0/1)')
-        parser_phys.add_argument('--vrf', required=True, help='Nazwa VRF do przypisania')
-        parser_phys.add_argument('--ip', required=True, help='Adres IP')
-        parser_phys.add_argument('--mask', required=True, help='Maska podsieci')
+        parser_phys.add_argument('--name', required=True, help='Nazwa interfejsu (np. GigabitEthernet1)')
+        parser_phys.add_argument('--vrf', help='Nazwa VRF do przypisania')
+        parser_phys.add_argument('--ip-addr', help='Adres IP')
+        parser_phys.add_argument('--mask', help='Maska podsieci')
         parser_phys.add_argument('--desc', help='Opis interfejsu')
 
         # loopback
         parser_loop = subparsers.add_parser('loopback', help='Konfiguracja interfejsu loopback')
         parser_loop.add_argument('--id', required=True, type=int, help='Numer interfejsu loopback (np. 1)')
-        parser_loop.add_argument('--vrf', required=True, help='Nazwa VRF do przypisania')
-        parser_loop.add_argument('--ip', required=True, help='Adres IP')
+        parser_loop.add_argument('--vrf', help='Nazwa VRF do przypisania')
+        parser_loop.add_argument('--ip-addr', required=True, help='Adres IP')
         parser_loop.add_argument('--mask', default='255.255.255.255', help='Maska podsieci (domyślnie /32)')
         parser_loop.add_argument('--desc', help='Opis interfejsu')
 
         try:
             args = parser.parse_args(shlex.split(arg))
-            print(f"--- PARAMS: assign_interface typu {args.interface_type} ---")
-            print(f"   Argumenty: {args}")
-            print("   (W tym miejscu nastąpiłaby właściwa implementacja konfiguracji)\n")
+            print(f"--- Running: assign_interface typu {args.interface_type} na {args.ip} ---")
+
+            handler = RestConfHandler(args.ip, args.username, args.password)
+            if not handler.test_connection():
+                print(f"BŁĄD: Nie można połączyć się z urządzeniem {args.ip}.")
+                return
+
+            iface_config = None
+            if args.interface_type == 'physical':
+                iface_config = InterfaceConfig(
+                    name=args.name,
+                    type=InterfaceType.ETHERNET,
+                    ip_addr=args.ip_addr,
+                    ip_mask=args.mask,
+                    vrf=args.vrf,
+                    description=args.desc or ""
+                )
+            elif args.interface_type == 'loopback':
+                iface_name = f"Loopback{args.id}"
+                iface_config = InterfaceConfig(
+                    name=iface_name,
+                    type=InterfaceType.LOOPBACK,
+                    ip_addr=args.ip_addr,
+                    ip_mask=args.mask,
+                    vrf=args.vrf,
+                    description=args.desc or ""
+                )
+
+            if iface_config:
+                result = handler.update_interface(iface_config)
+                print(f"   Konfiguracja interfejsu '{iface_config.name}'")
+                print(f"   Wynik operacji (status: {result['status_code']}):")
+                if result.get('data'):
+                    print(json.dumps(result['data'], indent=2))
+                elif result['status_code'] >= 200 and result['status_code'] < 300:
+                    print("   OK")
+                else:
+                    print("   Operacja nie powiodła się.")
+
+            print("--- Operacja zakończona ---\n")
+
         except SystemExit:
             pass
+        except Exception as e:
+            print(f"Wystąpił nieoczekiwany błąd: {e}")
 
     def do_configure_ospf(self, arg):
         """
@@ -103,6 +189,11 @@ class RouteLeakingCli(cmd.Cmd):
             prog="configure_ospf",
             description="Konfiguruje i uruchamia proces OSPF dla wskazanego VRF."
         )
+        # Parametry połączeniowe
+        parser.add_argument('--ip', required=True, help="Adres IP urządzenia.")
+        parser.add_argument('--username', default="agh", help="Nazwa użytkownika.")
+        parser.add_argument('--password', default="xd", help="Hasło.")
+        # Parametry komendy
         parser.add_argument('--pid', required=True, type=int, help="ID procesu OSPF (np. 1, 2, 3).")
         parser.add_argument('--vrf', required=True, help="Nazwa VRF, w którym działa OSPF.")
         parser.add_argument('--network', required=True, help="Adres sieci do rozgłaszania (np. 10.0.0.0).")
@@ -111,11 +202,22 @@ class RouteLeakingCli(cmd.Cmd):
 
         try:
             args = parser.parse_args(shlex.split(arg))
-            print(f"--- PARAMS: configure_ospf dla VRF {args.vrf} ---")
+            print(f"--- Running: configure_ospf dla VRF {args.vrf} na {args.ip} ---")
+
+            handler = RestConfHandler(args.ip, args.username, args.password)
+            if not handler.test_connection():
+                print(f"BŁĄD: Nie można połączyć się z urządzeniem {args.ip}.")
+                return
+
+            print(f"   Połączono z urządzeniem {args.ip}.")
             print(f"   Argumenty: {args}")
-            print("   (W tym miejscu nastąpiłaby właściwa implementacja konfiguracji)\n")
+            print("   (W tym miejscu nastąpiłaby właściwa implementacja konfiguracji OSPF przez RESTCONF)\n")
+            print("--- Operacja zakończona ---\n")
+
         except SystemExit:
             pass
+        except Exception as e:
+            print(f"Wystąpił nieoczekiwany błąd: {e}")
 
     def do_configure_bgp(self, arg):
         """
@@ -151,7 +253,7 @@ class RouteLeakingCli(cmd.Cmd):
     def do_configure_route_leaking(self, arg):
         """
         Krok 7: Konfiguracja Route Leaking.
-        [cite_start]Ustawia atrybuty route-target import/export dla VRF. [cite: 29]
+        Ustawia atrybuty route-target import/export dla VRF.
         """
         parser = argparse.ArgumentParser(
             prog="configure_route_leaking",
