@@ -59,7 +59,6 @@ def educational_route_leaking_demo():
     print(f"Interface GigE0/0/1 (Customer A): {result_int_a['status_code']}")
     print(f"Interface GigE0/0/2 (Customer B): {result_int_b['status_code']}")
 
-
     print("\n**Step 4: Configuring VRFS")
 
     vrf_a = VrfConfig(
@@ -118,18 +117,18 @@ def educational_route_leaking_demo():
     # print(f"BGP Address Family (Customer B): {bgp_result_b['status_code']}")
 
     # Step 5: Verification and status check
-    print("\nStep 99: Verifying configuration...")
-
-    # Check VRF status
-    vrfs = handler.get_vrfs()
-    print(vrfs)
-
-    # Check interface status
-    interfaces = handler.get_interfaces()
-    print(interfaces)
-
-    bgp = handler.get_bgp_config()
-    print(bgp)
+    # print("\nStep 99: Verifying configuration...")
+    #
+    # # Check VRF status
+    # vrfs = handler.get_vrfs()
+    # print(vrfs)
+    #
+    # # Check interface status
+    # interfaces = handler.get_interfaces()
+    # print(interfaces)
+    #
+    # bgp = handler.get_bgp_config()
+    # print(bgp)
 
 
 def advanced_route_leaking_scenarios():

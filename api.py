@@ -59,7 +59,7 @@ class RestConfHandler:
             case RequestType.VRF_PATCH:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/vrf/definition={kwargs['vrf']}"
             case RequestType.BGP:
-                return f"{self.base_url}/Cisco-IOS-XE-native:native/router/bgp"
+                return f"{self.base_url}/Cisco-IOS-XE-native:native/router/Cisco-IOS-XE-bgp:bgp"
             case RequestType.ROUTE_MAP:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/route-map"
 
@@ -189,28 +189,39 @@ class RestConfHandler:
     def create_bgp(self, as_number: int, vrf_name: str, rd: str, import_rt: str,
                    export_rt: str) -> Dict[str, Any]:
         """Create BGP configuration"""
+        print(vrf_name)
         bgp_config = {
-            "Cisco-IOS-XE-bgp:bgp": {
-                "id": as_number,
-                "bgp": {
-                    "log-neighbor-changes": False,
+            "Cisco-IOS-XE-bgp:bgp": [
+                {
+                    "id": 65500,
+                    "bgp": {
+                        "log-neighbor-changes": False,
+                        "router-id": {
+                            "ip-id": "1.1.1.1"
+                        }
+                    },
                     "address-family": {
-                        # "with-vrf": {
-                            # "vrf": vrf_name,
-                            # "address-family": "ipv4-unicast",
-                            # "rd": rd,
-                            # "route-target": {
-                            #     "import": {
-                            #         "asn-ip": [rt.strip() for rt in import_rt.split(",")]
-                            #     },
-                            #     "export": {
-                            #         "asn-ip": [rt.strip() for rt in export_rt.split(",")]
-                            #     }
-                            # }
-                        # }
+                        "with-vrf": {
+                            "ipv4": [
+                                {
+                                    "af-name": "unicast",
+                                    "vrf": [
+                                        {
+                                            "name": vrf_name,
+                                            "ipv4-unicast": {
+                                                "redistribute-vrf": {
+                                                    "connected": {
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
                     }
                 }
-            }
+            ]
         }
         url = self._build_url(RequestType.BGP)
         response = self._make_request("PATCH", url, bgp_config)
