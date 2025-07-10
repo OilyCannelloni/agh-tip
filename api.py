@@ -52,9 +52,9 @@ class RestConfHandler:
         """Build appropriate URL based on request type"""
         match rq_type:
             case RequestType.INTERFACE:
-                interface = kwargs.get('interface', '')
-                interface = interface.replace("/", "%2F")
-                return f"{self.base_url}/ietf-interfaces:interfaces/interface={interface}"
+                # interface = kwargs.get('interface', '')
+                # interface = interface.replace("/", "%2F")
+                return f"{self.base_url}/Cisco-IOS-XE-native:native/interface/GigabitEthernet"
             case RequestType.VRF:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/vrf"
             case RequestType.VRF_PATCH:
@@ -118,7 +118,7 @@ class RestConfHandler:
     def update_interface(self, interface_config) -> Dict[str, Any]:
         """Update interface configuration"""
         url = self._build_url(RequestType.INTERFACE, interface=interface_config.name)
-        response = self._make_request("PATCH", url, interface_config.to_yang())
+        response = self._make_request("PATCH", url, interface_config.to_yang2())
         return {
             "status_code": response.status_code,
             "data": response.json() if response.text else None
@@ -210,11 +210,28 @@ class RestConfHandler:
                                     "af-name": "unicast",
                                     "vrf": [
                                         {
-                                            "name": vrf_name,
+                                            "name": "CUSTOMER_A",
                                             "ipv4-unicast": {
                                                 "redistribute-vrf": {
-                                                    "connected": {
-                                                    }
+                                                    "connected": {},
+                                                    "ospf": [
+                                                        {
+                                                            "id": 101
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "name": "CUSTOMER_B",
+                                            "ipv4-unicast": {
+                                                "redistribute-vrf": {
+                                                    "connected": {},
+                                                    "ospf": [
+                                                        {
+                                                            "id": 102
+                                                        }
+                                                    ]
                                                 }
                                             }
                                         }

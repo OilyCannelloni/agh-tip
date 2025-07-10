@@ -64,6 +64,31 @@ class InterfaceConfig:
     description: str = ""
     vrf: Optional[str] = None  # VRF assignment for route leaking
 
+    def to_yang2(self):
+        data = {
+            "GigabitEthernet": [
+                {
+                    "name": self.name.replace("GigabitEthernet", ""),
+                    "description": self.description,
+                    "vrf": {} if not self.vrf else {
+                        "forwarding": self.vrf
+                    },
+                    "ip": {
+                        "address": {
+                            "primary": {
+                                "address": self.ip_addr,
+                                "mask": self.ip_mask
+                            }
+                        }
+                    },
+                    "Cisco-IOS-XE-ethernet:negotiation": {
+                        "auto": True
+                    }
+                }
+            ]
+        }
+        return data
+
     def to_yang(self):
         interface_config = {
             "ietf-interfaces:interface": {
@@ -84,6 +109,8 @@ class InterfaceConfig:
                     }
                 ]
             }
+
+
 
         # Add VRF assignment if specified
         if self.vrf:

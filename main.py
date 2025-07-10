@@ -44,13 +44,19 @@ def educational_route_leaking_demo():
     # Interface for Customer A
     int_a = InterfaceConfig(
         name="GigabitEthernet0/0/1",
-        description="Customer A Interface"
+        description="Customer A Interface",
+        ip_addr="11.0.0.1",
+        ip_mask="255.255.255.0",
+        vrf="CUSTOMER_A"
     )
 
     # Interface for Customer B (THIS WAS MISSING!)
     int_b = InterfaceConfig(
         name="GigabitEthernet0/0/2",
-        description="Customer B Interface"
+        description="Customer B Interface",
+        ip_addr="12.0.0.1",
+        ip_mask="255.255.255.0",
+        vrf="CUSTOMER_B"
     )
 
     result_int_a = handler.update_interface(int_a)
@@ -67,9 +73,7 @@ def educational_route_leaking_demo():
         export_rt="65000:100",
         import_rt="65000:200"
     )
-
     vrf_a_result = handler.patch_vrf(vrf_a, vrf_a.name)
-
     print(f"VRF CUSTOMER_A: {vrf_a_result['status_code']}")
 
     vrf_b = VrfConfig(
@@ -78,12 +82,17 @@ def educational_route_leaking_demo():
         export_rt="65000:200",
         import_rt="65000:100"
     )
-
     vrf_b_result = handler.patch_vrf(vrf_b, vrf_b.name)
     print(f"VRF CUSTOMER_B: {vrf_b_result['status_code']}")
 
-    print("\n*****Step 5: Configuring BGP address families...")
+    # OSPF
+    print("\n*****Step 5: Configuring OSPF")
+    ospf_result = handler.create_ospfs()
+    print(ospf_result['status_code'])
 
+
+    # BGP
+    print("\n*****Step 6: Configuring BGP address families...")
     bgp_result_a = handler.create_bgp(
         as_number=65000,
         vrf_name="CUSTOMER_A",
@@ -94,10 +103,7 @@ def educational_route_leaking_demo():
     print(f"BGP Address Family: {bgp_result_a['status_code']}")
 
 
-    # OSPF
-    print("\n*****Step 6: Configuring OSPF")
-    ospf_result = handler.create_ospfs()
-    print(ospf_result['status_code'])
+
 
     # print("\nStep 6: Configuring BGP address families...")
     #
