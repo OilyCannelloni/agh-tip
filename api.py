@@ -24,6 +24,7 @@ class RequestType(enum.Enum):
     BGP = "bgp"
     BGP_PATCH = "bgp patch"
     ROUTE_MAP = "route_map"
+    OSPF = "ospf"
 
 
 class RestConfHandler:
@@ -62,6 +63,8 @@ class RestConfHandler:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/router/Cisco-IOS-XE-bgp:bgp"
             case RequestType.ROUTE_MAP:
                 return f"{self.base_url}/Cisco-IOS-XE-native:native/route-map"
+            case RequestType.OSPF:
+                return f"{self.base_url}/Cisco-IOS-XE-native:native/router/Cisco-IOS-XE-ospf:router-ospf"
 
     def _make_request(self, method: str, url: str, data: Optional[Dict] = None) -> requests.Response:
         """Make HTTP request with proper error handling"""
@@ -225,6 +228,52 @@ class RestConfHandler:
         }
         url = self._build_url(RequestType.BGP)
         response = self._make_request("PATCH", url, bgp_config)
+        return {
+            "status_code": response.status_code,
+            "data": response.json() if response.text else None
+        }
+
+
+    def create_ospfs(self):
+        ospf_config = {
+            "Cisco-IOS-XE-ospf:router-ospf": {
+                "ospf": {
+                    "process-id-vrf": [
+                        {
+                            "id": 101,
+                            "vrf": "CUSTOMER_A",
+                            "network": [
+                                {
+                                    "ip": "11.0.0.0",
+                                    "wildcard": "0.255.255.255",
+                                    "area": 11
+                                }
+                            ],
+                            "capability": {
+                                "vrf-lite": True
+                            }
+                        },
+                        {
+                            "id": 102,
+                            "vrf": "CUSTOMER_B",
+                            "network": [
+                                {
+                                    "ip": "12.0.0.0",
+                                    "wildcard": "0.255.255.255",
+                                    "area": 12
+                                }
+                            ],
+                            "capability": {
+                                "vrf-lite": True
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        url = self._build_url(RequestType.OSPF)
+        response = self._make_request("PATCH", url, ospf_config)
         return {
             "status_code": response.status_code,
             "data": response.json() if response.text else None

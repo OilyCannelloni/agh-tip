@@ -93,6 +93,12 @@ def educational_route_leaking_demo():
     )
     print(f"BGP Address Family: {bgp_result_a['status_code']}")
 
+
+    # OSPF
+    print("\n*****Step 6: Configuring OSPF")
+    ospf_result = handler.create_ospfs()
+    print(ospf_result['status_code'])
+
     # print("\nStep 6: Configuring BGP address families...")
     #
     # # BGP for Customer A VRF
