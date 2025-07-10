@@ -30,7 +30,10 @@ class VrfConfig:
         config = {
             "Cisco-IOS-XE-native:definition": {
                 "name": self.name,
-                "rd": self.rd
+                "rd": self.rd,
+                "address-family": {
+                    "ipv4": {}
+                }
             }
         }
         #
