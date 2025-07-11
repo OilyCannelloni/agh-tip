@@ -295,38 +295,3 @@ class RestConfHandler:
             "status_code": response.status_code,
             "data": response.json() if response.text else None
         }
-
-    def configure_bgp_address_family(self, as_number: int, vrf_name: str,
-                                     rd: str, import_rt: str, export_rt: str) -> Dict[str, Any]:
-        """Configure BGP address family for VRF (essential for route leaking)"""
-        bgp_config = {
-            "Cisco-IOS-XE-bgp:bgp": {
-                "id": as_number,
-                # "address-family": {
-                #     "with-vrf": {
-                #         "af-vrf": [
-                #             {
-                #                 "vrf": vrf_name,
-                #                 "address-family": "ipv4-unicast",
-                #                 "rd": rd,
-                #                 "route-target": {
-                #                     "import": {
-                #                         "asn-ip": [rt.strip() for rt in import_rt.split(",")]
-                #                     },
-                #                     "export": {
-                #                         "asn-ip": [rt.strip() for rt in export_rt.split(",")]
-                #                     }
-                #                 }
-                #             }
-                #         ]
-                #     }
-                # }
-            }
-        }
-
-        url = self._build_url(RequestType.BGP)
-        response = self._make_request("PATCH", url, bgp_config)
-        return {
-            "status_code": response.status_code,
-            "data": response.json() if response.text else None
-        }
