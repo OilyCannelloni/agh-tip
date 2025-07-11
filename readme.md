@@ -134,3 +134,28 @@ https://10.0.0.1/restconf/data/Cisco-IOS-XE-native:native/interface/GigabitEther
 Aby edytować obiekt, wysyłamy request PATCH na ten URL, z danymi począwszy od pola, na którym kończy się URL (w tym
 przypadku `"GigabitEthernet"` . PATCH może tylko modyfikować i dodawać dane - nie usuwać. W związku z tym powyższe
 żądanie doda nowy interfejs, nawet jeśli są aktualnie zdefiniowane inne, nie będą one usunięte.
+
+
+# Przykładowy skrypt konfiguracyjny
+
+Przykładowy skrypt konfiguracyjny bgp znajduje sie w pliku main.py. Uruchomienie go wykona po sobie nastepujace kroki:
+- polaczenie z routerem
+- tworzenie VRF, przypisanie interfejsu do VRF
+- OSPF
+- konfiguracja BGP
+
+Aby skorzystac z domyslnych usatwien, nalezy na ruterze skorzystac z ustawien podanych wyzej, tj. user: agh pass: xd. Urzadzenie, z ktorego testowalismy skrypt wpięte bylo w interfejs GigabitEthernet0/0/0, ktory mial adres 10.0.0.1 od strony routera.
+
+**Uwaga!**
+OSPF dziala niedeterministycznie, niestety nie udalo sie tego naprawic.
+
+# Korzystanie z CLI
+
+Zaimplementowano rowniez prosty interfejs CLI, ktory pozwala na wykonywanie podstawowych operacji na routerze. Aby go uruchomic, wystarczy uruchomic plik `cli.py`.
+Interfejs pozwala na wykonanie scenariusza uruchamianego skryptem z 'main.py', krok po kroku.
+
+CLI posiada wbudowaną dokumentację:
+- `?` - wyświetla dostępne komendy
+- `<komenda> -h` - wyświetla pomoc dla danej komendy
+
+CLI napisane zostalo przy użyciu biblioteki `cmd`, która jest standardową biblioteką Pythona do tworzenia interaktywnych powłok, polecamy eksperymenty z tym rozwiazaniem, bardzo ulatwia prace.
